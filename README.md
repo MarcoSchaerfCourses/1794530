@@ -2,21 +2,27 @@
 final-project-for-interactive-graphics-course-1794530 created by GitHub Classroom
 Animation and mouse control is enabled by default.
 Controls are:
-----
+
+
 Keyboard:
+----
 A: Move camera left
 D: Move camera right
 W: Move camera up
 S: Move camera down
 E: Move forward
 Q: Move Backward
+
 ----
 R: Start/stop animation
 M: Enable/disable mouse
+
+Mouse: 
 ----
-Mouse: It changes the lookAt of the camera (doesn't affect the movement, it only looks on that direction)
-----
+It changes the lookAt of the camera (doesn't affect the movement, it only looks on that direction)
+
 Description:
+-----
 The original project was to create a spacecraft game, but while creating the surroundings this looks like a project itself.
 The surroundings are a representation of the solar system.
 - Planets are created using hierarchies
