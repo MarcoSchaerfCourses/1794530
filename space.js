@@ -815,7 +815,7 @@ window.onload = function init() {
   perspectiveAspectRatio = canvas.clientWidth/canvas.clientHeight;
   gl = WebGLUtils.setupWebGL( canvas );
   // Initialise shaders
-  program = InitShaders( gl, "vertex-shader", "fragment-shader");
+  program = initShaders( gl, "vertex-shader", "fragment-shader");
 
 
 
