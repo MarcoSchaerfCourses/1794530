@@ -33,6 +33,7 @@ The surroundings are a representation of the solar system.
 - There is a lighting source placed at the Sun, as well as ambient light.
 - Environment can be controlled using keyboard and mouse
 - It is possible to select a planet to place the camera behind and follow it around the sun.
+
 2 buffers are used, one for the solar system, another one for the spaceship. The spaceship details are:
 - Comprises of 3 part: the body (parent) and the 2 wings (childs)
 - The shape of the ship is a single trapezoid used for the 3 parts. The wings are scaled wider and shorter
