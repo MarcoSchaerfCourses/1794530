@@ -292,7 +292,7 @@ function initShip(Id) {
           m = translate(shipCoord[0]- 0.0000005-tx, shipCoord[1]- 0.0000005-ty, -shipCoord[2]-0.0000015-tz);
         }
         incX = -degrees(speedZ*(psDivider*70));
-        incZ = degrees(speedX*(psDivider*90));
+        incZ = degrees(speedX*(psDivider*110));
         if (incX>45){
           incX=45;
         } else if (incX<-45){
