@@ -12,6 +12,7 @@ W: Move camera up
 S: Move camera down
 E: Move forward
 Q: Move Backward
+Space bar: stop moving
 
 ----
 R: Start/stop animation
@@ -23,7 +24,6 @@ It changes the lookAt of the camera (doesn't affect the movement, it only looks 
 
 Description:
 -----
-The original project was to create a spacecraft game, but while creating the surroundings this looks like a project itself.
 The surroundings are a representation of the solar system.
 - Planets are created using hierarchies
 - Each planet has its own texture
@@ -33,3 +33,8 @@ The surroundings are a representation of the solar system.
 - There is a lighting source placed at the Sun, as well as ambient light.
 - Environment can be controlled using keyboard and mouse
 - It is possible to select a planet to place the camera behind and follow it around the sun.
+2 buffers are used, one for the solar system, another one for the spaceship. The spaceship details are:
+- Comprises of 3 part: the body (parent) and the 2 wings (childs)
+- The shape of the ship is a single trapezoid used for the 3 parts. The wings are scaled wider and shorter
+- The body and wings rotate differently when moving forward/backward/sideway.
+- It is fixed on a position in front of the camera
