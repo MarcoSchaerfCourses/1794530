@@ -11,7 +11,7 @@
       /* make the canvas the size of the viewport */
       canvas {
         width: 99vw;
-        height: 99vh;
+        height: 85vh;
         display: block;
         border: 1px solid #555555;
       }
@@ -29,8 +29,8 @@
 
 <script id="vertex-shader" type="x-shader/x-vertex">
 
-attribute vec3 VertexPosition;
-attribute vec3 VertexNormal;
+attribute vec3 vPosition;
+attribute vec3 vNormal;
 attribute vec2 vTexCoord;
 
 
@@ -48,33 +48,14 @@ vec3 ambientLight = vec3(0.6, 0.6, 0.6);
 void main() {
   // Convert normal and position to eye coords.
   fTexCoord = vTexCoord;
-  vec3 tnorm = normalize(VertexNormal);
-  vec4 eyeCoords = modelViewMatrix * vec4(VertexPosition, 1.0);
-  vec3 s1 = normalize(vec3(LightPosition)); //- eyeCoords));
-  // vec3 s1 = normalize(vec3(0.0,0.0,-0.0000000000000000001085));
-  // vec3 s1 = normalize(vec3(0.0,0.0,1.0));
-  // vec3 s2 = normalize(vec3(0.0,0.0000000000000000001085,0.0));
-  // vec3 s3 = normalize(vec3(0.0000000000000000001085,0.0,0.0));
-  // vec3 s4 = normalize(vec3(0.0,-0.0000000000000000001085,0.0));
-  // vec3 s5 = normalize(vec3(-0.0000000000000000001085,0.0,0.0));
-  // vec3 s6 = normalize(vec3(0.0,0.0,-0.0000000000000000001085));
-  // vec3 s2 = normalize(vec3(0.0,0.0,0.0));
-  // vec3 s3 = normalize(vec3(0.0,0.0,0.0));
-  // vec3 s4 = normalize(vec3(0.0,-0.0,0.0));
-  // vec3 s5 = normalize(vec3(-0.0,0.0,0.0));
-  // vec3 s6 = normalize(vec3(0.0,0.0,0.0));
+  vec3 tnorm = normalize(vNormal);
+  vec4 eyeCoords = modelViewMatrix * vec4(vPosition, 1.0);
+  vec3 s1 = normalize(vec3(LightPosition));
 
   // Diffuse shading equation.
-  vec3 LightIntensity1 = ambientLight +  Ld * Kd * max(dot(s1, tnorm), 0.0);
-  // vec3 LightIntensity2 = ambientLight +  Ld * Kd * max(dot(s2, tnorm), 0.0);
-  // vec3 LightIntensity3 = ambientLight +  Ld * Kd * max(dot(s3, tnorm), 0.0);
-  // vec3 LightIntensity4 = ambientLight +  Ld * Kd * max(dot(s4, tnorm), 0.0);
-  // vec3 LightIntensity5 = ambientLight +  Ld * Kd * max(dot(s5, tnorm), 0.0);
-  // vec3 LightIntensity6 = ambientLight +  Ld * Kd * max(dot(s6, tnorm), 0.0);
-  LightIntensity = LightIntensity1;// + LightIntensity2 + LightIntensity3 +LightIntensity4 +LightIntensity5+LightIntensity6;
+  LightIntensity = ambientLight +  Ld * Kd * max(dot(s1, tnorm), 0.0);
 
-
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(VertexPosition, 1.0);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(vPosition, 1.0);
 }
 
 </script>
@@ -84,11 +65,11 @@ void main() {
 precision mediump float;
 varying vec3 LightIntensity;
 varying  vec2 fTexCoord;
-uniform sampler2D texPlanet;
+uniform sampler2D textures;
 
 
 void main() {
-  gl_FragColor = vec4(LightIntensity, 1.0)*(texture2D(texPlanet, fTexCoord));
+  gl_FragColor = vec4(LightIntensity, 1.0)*(texture2D(textures, fTexCoord));
 
 }
 
@@ -148,7 +129,6 @@ void main() {
 
 
   <div>
-    <!-- <canvas id="gl-canvas" width="360" height="360"> -->
     <canvas id="gl-canvas" width="1920" height="1080">
     Oops ... your browser doesn't support the HTML5 canvas element
     </canvas>

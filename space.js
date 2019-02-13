@@ -12,8 +12,8 @@
 /**********************
 * VARIABLE INITIALIZATION
 ***********************/
-
-
+const numPlanets = 12;
+// TEXTURES
 var sunImage = new Image();
 var mercuryImage = new Image();
 var venusImage = new Image();
@@ -27,6 +27,7 @@ var neptuneImage = new Image();
 var plutoImage = new Image();
 var earthImage = new Image();
 var spaceImage = new Image();
+var shipImage = new Image();
 sunImage.src = './planet_textures/sun.png';
 mercuryImage.src = './planet_textures/mercury.jpg';
 venusImage.src = './planet_textures/venus.jpg';
@@ -39,36 +40,42 @@ uranusImage.src = './planet_textures/uranus.jpg';
 neptuneImage.src = './planet_textures/neptune.jpg';
 plutoImage.src = './planet_textures/pluto.jpg';
 spaceImage.src = './planet_textures/background2.jpg';
+shipImage.src = './planet_textures/metal.jpg';
 
-var planetImages=[ spaceImage, sunImage, mercuryImage,venusImage, earthImage,moonImage,
-                marsImage, jupiterImage, saturnImage, uranusImage, neptuneImage, plutoImage];
+var textureImages=[ spaceImage, sunImage, mercuryImage,venusImage, earthImage,moonImage,
+                marsImage, jupiterImage, saturnImage, uranusImage, neptuneImage, plutoImage, shipImage];
 
 
+// Distance between planets
 const distanceDivider = 5913;
 const pd = [0.0, 0.0, 57.9/distanceDivider, 108.2/distanceDivider, 149.6/distanceDivider,
                         0.384/distanceDivider,227.9/distanceDivider, 778.3/distanceDivider, 1427/distanceDivider,
                         2871/distanceDivider, 4497.1/distanceDivider, 5913/distanceDivider]
 
-
+// Make space sphere larger than the last distance
 const spaceSize = pd[pd.length-1] + pd[pd.length-1]/2;
 
+// Make planet sizes relative to the distance between planets
 const psDivider = 10000;
 const sunSize = spaceSize/psDivider;///10000;
 const ps = [spaceSize*1.4, sunSize, sunSize/277, sunSize/133, sunSize/108, sunSize/108,//(sunSize/108)*0.27,
             sunSize/208, sunSize/9.7,sunSize/11.4, sunSize/26.8, sunSize/27.7, sunSize/(108*5.5)]
 
+// Speed for planet translation
 const speedTransBase = 0.0000001*180/Math.PI;
 const pt = [0, 0, speedTransBase/9, speedTransBase/8, speedTransBase/7, speedTransBase/8,
             speedTransBase/6, speedTransBase/7,speedTransBase/8, speedTransBase/9, speedTransBase/15, speedTransBase/100000]
 
 
+// Speed for planet rotation
 const speedRotationBase = 10;
 const speedRotation = [speedRotationBase/520, speedRotationBase/11, speedRotationBase/10, speedRotationBase/9, speedRotationBase/8,
                     speedRotationBase/7, speedRotationBase/6, speedRotationBase/5,speedRotationBase/4, speedRotationBase/3, speedRotationBase/2, speedRotationBase/5]
 var pr=[];
-for (let p=0; p<planetImages.length; p++) pr.push(0.0);
+// Initialise planet rotation
+for (let p=0; p<numPlanets; p++) pr.push(0.0);
 
-// Planet coordinates
+// Initialise planet coordinates
 var pc = []
 for (let i=0; i<pd.length; i++){
   pc.push(vec3(0.0, 0.0, pd[i]));
@@ -81,6 +88,7 @@ var stack = [];
 // each object in the hierarchy
 var figure = [];
 
+// Figure IDs
 const spaceId = 0;
 const sunId = 1;
 const mercuryId = 2;
@@ -93,42 +101,91 @@ const saturnId = 8;
 const uranusId = 9;
 const neptuneId = 10;
 const plutoId  = 11;
+const bodyId = 12;
+const leftWingId = 13;
+const rightWingId = 14;
 
-const numPlanets = 12;
-
+// Variable to store what planet to follow; -1 will go to the sun (0,0,x)
 var followPlanet = 4;
+// Camera will move around
 var cameraCoord = vec3(0.0,0.0,0.0);
+// Ship will also move, but fixed relative to the camera
+var shipCoord = vec3(0.0,0.0,0.0);
+// Ship size
+var shipBodySize = [ps[5]/5, ps[5]/5, ps[5]/5];
+var shipWingSize = [shipBodySize[0]*2,shipBodySize[1]/2,shipBodySize[2]/2];
 
+/**********SHIP vertices, normals and indices for rendering**********/
+var verticesShip = new Float32Array([ 0.5, 0.5, 0.5,  -0.5, 0.5, 0.5,  -0.5,-0.5, 0.5,   0.5,-0.5, 0.5,   // v0,v1,v2,v3 (front)
+                        0.5, 0.5, 0.5,   0.5,-0.5, 0.5,   0.5,-0.5,-0.5,   0.5, 0.0,-0.5,   // v0,v3,v4,v5 (right)
+                        0.5, 0.5, 0.5,   0.5, 0.0,-0.5,  -0.5, 0.0,-0.5,  -0.5, 0.5, 0.5,   // v0,v5,v6,v1 (top)
+                       -0.5, 0.5, 0.5,  -0.5, 0.0,-0.5,  -0.5,-0.5,-0.5,  -0.5,-0.5, 0.5,   // v1,v6,v7,v2 (left)
+                       -0.5,-0.5,-0.5,   0.5,-0.5,-0.5,   0.5,-0.5, 0.5,  -0.5,-0.5, 0.5,   // v7,v4,v3,v2 (bottom)
+                        0.5,-0.5,-0.5,  -0.5,-0.5,-0.5,  -0.5, 0.0,-0.5,   0.5, 0.0,-0.5 ]); // v4,v7,v6,v5 (back)
 
-// initialise each object
-for( var i=0; i<numPlanets; i++) figure[i] = createNode(null, null, null, null);
+// normal array
+var normalsShip  = new Float32Array([ 0, 0, 1,   0, 0, 1,   0, 0, 1,   0, 0, 1,   // v0,v1,v2,v3 (front)
+                        1, 0, 0,   1, 0, 0,   1, 0, 0,   1, 0, 0,   // v0,v3,v4,v5 (right)
+                        0, 1, 0,   0, 1, 0,   0, 1, 0,   0, 1, 0,   // v0,v5,v6,v1 (top)
+                       -1, 0, 0,  -1, 0, 0,  -1, 0, 0,  -1, 0, 0,   // v1,v6,v7,v2 (left)
+                        0,-1, 0,   0,-1, 0,   0,-1, 0,   0,-1, 0,   // v7,v4,v3,v2 (bottom)
+                        0, 0,-1,   0, 0,-1,   0, 0,-1,   0, 0,-1 ]); // v4,v7,v6,v5 (back)
 
-var planetTextures = [];
+var indicesShip = new Uint16Array([0, 1, 2,   2, 3, 0,      // front
+                       4, 5, 6,   6, 7, 4,      // right
+                       8, 9,10,  10,11, 8,      // top
+                      12,13,14,  14,15,12,      // left
+                      16,17,18,  18,19,16,      // bottom
+                      20,21,22,  22,23,20]);
 
-var vertexPositionData = [];
-var normalData = [];
-var textureCoordData = [];
+// Texture coordinates for the ship - they will use the whole image.
+var texCoordShip = [];
+for (let t=0; t<6;t++){
+  texCoordShip.push(0,0,0,1,1,1,1,0);
+}
+texCoordShip = new Float32Array(texCoordShip);
+
+// Variable to store initialised textures
+var figureTextures = [];
+
+// Arrays to store sphere rendering data
+var vPositionData = [];
+var vNormalData = [];
+var vTextCoordData = [];
 var indexData = [];
 
+// WebGL core variables
 var canvas;
 var gl;
 var program;
 
+// Create buffer objects.
+var vPositionBuffer;
+var vNormalBuffer;
+var indexBuffer;
+var texCoordBuffer;
+var vPosition;
 
+// Assign normal to attrib and enable it.
+var vNormal;
+
+var vTextCoord;
+
+// View vectors
 var eye = vec3(0.0,0.0,0.0);
-// var eye = vec3(0.0,0.0,0.0);
 var at = vec3(0.0, 0.0, 0.0);
 var up = vec3(0.0, 1.0, 0.0);
+
+// Variables to store rotation of the camera with the mouse
 var sx = 0.0;
 var sy = 0.0;
 var sz = 0.0;
+// Variables to store translation of the camera using the keys
 var tx = 0.0;
 var ty = 0.0;
 var tz = 0.0;
-// var tz = -0.0001525;
-// var tz=-0.009802983764586503; //mercury
-// var tz=-pd[earthId]-0.00001; //earth
 
+// Mouse coordinates on the canvas init
 var mouse_x = 0;
 var mouse_y = 0;
 
@@ -137,12 +194,13 @@ var pLeft= -1.0;
 var pRight = 1.0;
 var pBottom = -1.0;
 var pTop = 1.0;
-
+// Make pNear same as the smaller size in the planets to always see the planets full size on screen
 var pNear = Math.min.apply(null, ps.slice(2));
-// pFar updated if Z in camera changes to avoid clipping out the dog.
+// pFar updated if Z in camera changes to avoid clipping.
 var pFar = 10000;
-var pFovy = 60;//Math.PI*5;
+var pFovy = 60;
 var aspectRatio, perspectiveAspectRatio;
+// Speeds for camera movement and planet rotation steps
 var step = 1/(psDivider*1000);
 var speedX = 0.0;
 var speedY = 0.0;
@@ -151,24 +209,26 @@ var speedZ = 0.0;
 var instanceMatrix;
 var projectionMatrix, projectionMatrixLoc;
 var modelViewMatrix, modelViewMatrixLoc;
-// 2 different model views; Orthographic view needs scaling for canvas aspect ratio
 var modelViewMatrixPersp;
 
 var animate = true;
 var enableMouse = true;
 
+// Needed to check if textures are power of two
 function IsPowerOfTwo(x)
 {
     return (x & (x - 1)) == 0;
 }
+// Turn radians to degrees
+function degrees(x){
+  return x*180/Math.PI;
+}
 
-
+// Function to init textures
 function initTextures(id, image){
-  planetTextures[id] = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, planetTextures[id]);
-  if (id == sunId){
-    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-  }
+  figureTextures[id] = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, figureTextures[id]);
+
   gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
   // Check if the image is a power of 2 in both dimensions.
   if (IsPowerOfTwo(image.width) && IsPowerOfTwo(image.height)) {
@@ -198,7 +258,7 @@ function createNode(transform, render, sibling, child){
     return node;
 }
 
-// Trasverse a dog part.
+// Trasverse a hierarchical object - either the environment or the ship.
 // When transversing, the original model view is saved, modified for the new part and then restored.
 // If the node has a child it recursevily calls trasverse
 function traverse(Id) {
@@ -211,12 +271,118 @@ function traverse(Id) {
    if(figure[Id].sibling != null) traverse(figure[Id].sibling);
 }
 
+// Initialise the ship: body and 2 wings
+// Translation of the ship depends on whether a planet is being followed
+// If a planet is followed, used that planet coordinates with an offset to see the ship on a colorFragmentShader
+// Substract the camera translation to keep the ship in the same place
+// If not following a planet, use the ship coordinates directly
+// Body is the parent. Winds are childs
+// The body and wing rotates when the camera is moving.
+// It then adds each part to the figures array.
+function initShip(Id) {
+    var m = mat4();
+    let incX;
+    let incZ;
+    switch(Id) {
+      // Space.
+      case bodyId:
+        if (followPlanet>-1){
+          m = translate(pc[followPlanet][0] - 0.0000005-tx, pc[followPlanet][1]- 0.0000005-ty, -shipCoord[2]-0.0000015-tz);
+        } else {
+          m = translate(shipCoord[0]- 0.0000005-tx, shipCoord[1]- 0.0000005-ty, -shipCoord[2]-0.0000015-tz);
+        }
+        incX = -degrees(speedZ*(psDivider*70));
+        incZ = degrees(speedX*(psDivider*90));
+        if (incX>45){
+          incX=45;
+        } else if (incX<-45){
+          incX=-45;
+        }
+        if (incZ>45){
+          incZ=45;
+        } else if (incZ<-45){
+          incZ=-45;
+        }
+        m = mult(m,rotate(incZ, 0, 0, 1 ));
+        m = mult(m,rotate(incX, 1, 0, 0 ));
+        figure[bodyId] = createNode( m, body, null, leftWingId );
+        break;
+      case leftWingId:
+        m = translate(-shipBodySize[0]/2,0.0,0.0);
+        incX = degrees(speedZ*(psDivider*70));
+        incZ = degrees(speedX*(psDivider*90));
+        if (incX>45){
+          incX=45;
+        } else if (incX<-45){
+          incX=-45;
+        }
+        if (incZ>45){
+          incZ=45;
+        } else if (incZ<-45){
+          incZ=-45;
+        }
+        m = mult(m,rotate(-incZ, 0, 0, 1 ));
+        m = mult(m,rotate(-incX, 1, 0, 0 ));
+        figure[leftWingId] = createNode( m, leftWing, rightWingId, null );
+        break;
+      case rightWingId:
+        m = translate(shipBodySize[0]/2,0.0,0.0);
+        incX = degrees(speedZ*(psDivider*70));
+        incZ = degrees(speedX*(psDivider*90));
+        if (incX>45){
+          incX=45;
+        } else if (incX<-45){
+          incX=-45;
+        }
+        if (incZ>45){
+          incZ=45;
+        } else if (incZ<-45){
+          incZ=-45;
+        }
+        m = mult(m,rotate(-incZ, 0, 0, 1 ));
+        m = mult(m,rotate(-incX, 1, 0, 0 ));
+        figure[rightWingId] = createNode( m, rightWing, null, null );
+        break;
+
+    }
+  }
+
+  // Transformation functions for the ship: translation and size
+  // Load the textures and draw elements
+  function body() {
+      instanceMatrix = mult(modelViewMatrixPersp, translate(0,0,0));
+      instanceMatrix = mult(instanceMatrix, scale4(shipBodySize[0], shipBodySize[1], shipBodySize[2]));
+      gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
+      gl.uniform1i(gl.getUniformLocation( program, "textures"), 12);
+      gl.drawElements(gl.TRIANGLES, 36  , gl.UNSIGNED_SHORT, 0);
+
+  }
+  function leftWing() {
+      instanceMatrix = mult(modelViewMatrixPersp, translate(-shipWingSize[0]/2, 0.0, 0.0) );
+
+      instanceMatrix = mult(instanceMatrix, scale4( shipWingSize[0], shipWingSize[1], shipWingSize[2]));
+      gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
+      gl.uniform1i(gl.getUniformLocation( program, "textures"), 12);
+      gl.drawElements(gl.TRIANGLES, 36  , gl.UNSIGNED_SHORT, 0);
+
+  }
+  function rightWing() {
+      instanceMatrix = mult(modelViewMatrixPersp, translate(shipWingSize[0]/2, 0.0, 0.0) );
+
+      instanceMatrix = mult(instanceMatrix, scale4( shipWingSize[0], shipWingSize[1], shipWingSize[2]));
+      gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
+      gl.uniform1i(gl.getUniformLocation( program, "textures"), 12);
+      gl.drawElements(gl.TRIANGLES, 36  , gl.UNSIGNED_SHORT, 0);
+
+  }
 
 // Function to initialise each node:
 // Id is the id of the node as specified above in the Variables
 // It generates the transformation matrix for each part (translate/rotate)
 // Adds the figure to the array of figures.
 // Each object is translated with respect to the parent node.
+// Each planet rotates on its own axis.
+// Translation is done with the pc array (coordinates), which changes following a circle on XZ
 function initPlanets(Id) {
 
     var m = mat4();
@@ -225,13 +391,14 @@ function initPlanets(Id) {
       case spaceId:
         m = translate(0.0, 0.0, 0.0);
         figure[spaceId] = createNode( m, space, null, sunId );
+        instanceMatrix = mult(instanceMatrix,rotate(-pr[spaceId], 0, 1, 0 ));
         // console.log("space");
         break;
       // Sun.
       case sunId:
         m = translate(0.0, 0.0, 0.0);
-        m = mult(m,rotate(0, 0, 1, 0 ))
-        figure[sunId] = createNode( m, sun, null, mercuryId );
+        m = mult(m,rotate(pr[sunId], 0, 1, 0 ));
+        figure[sunId] = createNode( m, sun, mercuryId, null );
         // console.log("sun");
         break;
 
@@ -239,21 +406,24 @@ function initPlanets(Id) {
       case mercuryId:
         // m = translate(0.0, 0.0, pd[Id]);
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m,rotate(0, 0, 1, 0 ))
+
+        m = mult(m,rotate(pr[mercuryId], 0, 1, 0 ))
         figure[mercuryId] = createNode( m, mercury, venusId, null );
         // console.log("mercury");
         break;
       // Venus.
       case venusId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m,rotate(0, 0, 1, 0 ))
+
+        m = mult(m,rotate(pr[venusId], 0, 1, 0 ))
         figure[venusId] = createNode( m, venus, earthId, null );
         // console.log("venus");
         break;
       // Earth.
       case earthId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m,rotate(0, 0, 1, 0 ))
+
+        m = mult(m,rotate(pr[earthId], 0, 1, 0 ));
         figure[earthId] = createNode( m, earth, marsId, moonId );
         // console.log("earth");
         break;
@@ -261,7 +431,7 @@ function initPlanets(Id) {
       case moonId:
 
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m, rotate(0, 0, 1, 0));
+        m = mult(m,rotate(-pr[moonId], 0, 1, 0 ));
         figure[moonId] = createNode( m, moon, null, null);
         // console.log("moon");
         break;
@@ -269,47 +439,41 @@ function initPlanets(Id) {
       case marsId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
         m = mult(m, rotate(0, 0, 1, 0));
-
         figure[marsId] = createNode( m, mars, jupiterId, null);
         // console.log("mars");
         break;
 
       case jupiterId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m, rotate(0, 0, 1, 0));
-
+        m = mult(m,rotate(pr[marsId], 0, 1, 0 ));
         figure[jupiterId] = createNode( m, jupiter, saturnId, null);
         // console.log("jupiter");
         break;
 
       case saturnId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m, rotate(0, 0, 1, 0));
-
+        m = mult(m,rotate(pr[saturnId], 0, 1, 0 ));
         figure[saturnId] = createNode( m, saturn, uranusId, null);
         // console.log("saturn");
         break;
 
       case uranusId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m, rotate(0, 0, 1, 0));
-
+        m = mult(m,rotate(pr[uranusId], 0, 1, 0 ));
         figure[uranusId] = createNode( m, uranus, neptuneId, null);
         // console.log("uranus");
         break;
 
       case neptuneId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m, rotate(0, 0, 1, 0));
-
+        m = mult(m,rotate(pr[neptuneId], 0, 1, 0 ));
         figure[neptuneId] = createNode( m, neptune, plutoId, null);
         // console.log("neptune");
         break;
 
       case plutoId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m, rotate(0, 0, 1, 0));
-
+        m = mult(m,rotate(pr[plutoId], 0, 1, 0 ));
         figure[plutoId] = createNode( m, pluto, null, null);
         // console.log("plutoId");
         break;
@@ -318,22 +482,22 @@ function initPlanets(Id) {
 
 }
 
+// Transformation functions for the planets and space: translation and size
+// Load the textures and draw elements
 function space() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0, 0, 0) );
-    instanceMatrix = mult(instanceMatrix,rotate(-pr[spaceId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[0],ps[0],ps[0]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 0);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 0);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 
 function sun() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[sunId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[1],ps[1],ps[1]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 1);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 1);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
@@ -341,46 +505,41 @@ function sun() {
 
 function mercury() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[mercuryId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[2],ps[2],ps[2]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 2);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 2);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 function venus() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[venusId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4(ps[3],ps[3],ps[3]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 3);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 3);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 function earth() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[earthId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[4],ps[4],ps[4]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 4);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 4);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 function moon() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(-pr[moonId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[5],ps[5],ps[5]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 5);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 5);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 function mars() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[marsId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[6],ps[6],ps[6]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 6);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 6);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
@@ -390,52 +549,49 @@ function jupiter() {
     instanceMatrix = mult(instanceMatrix,rotate(pr[jupiterId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[7],ps[7],ps[7]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 7);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 7);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 
 function saturn() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[saturnId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[8],ps[8],ps[8]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 8);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 8);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 
 function uranus() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[uranusId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[9],ps[9],ps[9]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 9);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 9);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 
 function neptune() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[neptuneId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[10],ps[10],ps[10]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 10);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 10);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
 
 function pluto() {
     instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
-    instanceMatrix = mult(instanceMatrix,rotate(pr[plutoId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[11],ps[11],ps[11]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
-    gl.uniform1i(gl.getUniformLocation( program, "texPlanet"), 11);
+    gl.uniform1i(gl.getUniformLocation( program, "textures"), 11);
     gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
 }
-
-function createNewPlanet() {
+// This function populates the information for the sphere that will be used
+// to create the space and each planet.
+function createSphere() {
 
   let latitudeBands = 50;
   let longitudeBands = 50;
@@ -459,16 +615,16 @@ function createNewPlanet() {
       let u = 1 - (longNumber / longitudeBands);
       let v = 1 - (latNumber / latitudeBands);
 
-      vertexPositionData.push(radius * x);
-      vertexPositionData.push(radius * y);
-      vertexPositionData.push(radius * z);
+      vPositionData.push(radius * x);
+      vPositionData.push(radius * y);
+      vPositionData.push(radius * z);
 
-      normalData.push(x);
-      normalData.push(y);
-      normalData.push(z);
+      vNormalData.push(x);
+      vNormalData.push(y);
+      vNormalData.push(z);
 
-      textureCoordData.push(u);
-      textureCoordData.push(v);
+      vTextCoordData.push(u);
+      vTextCoordData.push(v);
 
     }
   }
@@ -489,15 +645,17 @@ function createNewPlanet() {
     }
   }
 
-  vertexPositionData = new Float32Array(vertexPositionData);
-  normalData = new Float32Array(normalData);
-  textureCoordData = new Float32Array(textureCoordData);
+  vPositionData = new Float32Array(vPositionData);
+  vNormalData = new Float32Array(vNormalData);
+  vTextCoordData = new Float32Array(vTextCoordData);
   indexData = new Uint16Array(indexData);
 
 
 
-  return indexData.length-3
+  return indexData.length;
 }
+
+
 
 // Function to resize everything if the window is resized.
 // - Resize the canvas to fit the window
@@ -571,6 +729,66 @@ function updateCameraAt(){
   modelViewMatrixPersp[2][3] = cameraCoord[2];
 }
 
+// Bind and enable ship buffers to draw the ship
+function bindShipBuffers(){
+  // Write the vertex positions to their buffer object.
+  gl.bindBuffer(gl.ARRAY_BUFFER, vPositionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, verticesShip, gl.STATIC_DRAW);
+
+  // Assign position coords to attrib and enable it.
+  gl.vertexAttribPointer(vPosition, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(vPosition);
+
+  // Write the normals to their buffer object.
+  gl.bindBuffer(gl.ARRAY_BUFFER, vNormalBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, normalsShip, gl.STATIC_DRAW);
+
+  // Assign normal to attrib and enable it.
+  gl.vertexAttribPointer(vNormal, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(vNormal);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, texCoordShip, gl.STATIC_DRAW);
+
+  gl.vertexAttribPointer(vTextCoord, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(vTextCoord);
+
+  // Pass index buffer data to element array buffer.
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indicesShip, gl.STATIC_DRAW);
+}
+// Bind and enable planet buffers to draw planets and space
+function bindPlanetBuffers(){
+  // Write the vertex positions to their buffer object.
+  gl.bindBuffer(gl.ARRAY_BUFFER, vPositionBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vPositionData, gl.STATIC_DRAW);
+
+  // Assign position coords to attrib and enable it.
+  gl.vertexAttribPointer(vPosition, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(vPosition);
+
+  // Write the normals to their buffer object.
+  gl.bindBuffer(gl.ARRAY_BUFFER, vNormalBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vNormalData, gl.STATIC_DRAW);
+
+  // Assign normal to attrib and enable it.
+  gl.vertexAttribPointer(vNormal, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(vNormal);
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, texCoordBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, vTextCoordData, gl.STATIC_DRAW);
+
+  gl.vertexAttribPointer(vTextCoord, 2, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(vTextCoord);
+
+  // Pass index buffer data to element array buffer.
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW);
+}
+
+// Update model view to move the camera with the keys
+// Camera movement on each axis is done by setting the last column of the homogeneous tranformation mvpMatrix
+// Mouse rotation is done by rotating the result model view matrix
 function updateModelView(){
   modelViewMatrixPersp = lookAt(eye, at, up);
   updateCameraAt();
@@ -581,6 +799,8 @@ function updateModelView(){
   modelViewMatrixPersp = mult(rotate(sy, 0, 1, 0 ),modelViewMatrixPersp);
   modelViewMatrixPersp = mult(rotate(sx, 1, 0, 0 ),modelViewMatrixPersp);
 
+
+
   projectionMatrix = perspective(pFovy, (pRight-pLeft)/(pTop-pBottom)*perspectiveAspectRatio, pNear, pFar);
 
   gl.uniformMatrix4fv( projectionMatrixLoc, false, flatten(projectionMatrix) );
@@ -588,14 +808,13 @@ function updateModelView(){
 }
 
 window.onload = function init() {
-  // Init vertex and fragment shaders.
-  // initShaders(gl, VSHADER_SOURCE, FSHADER_SOURCE);
+
   canvas = document.getElementById('gl-canvas');
-
-
+  // Aspect ratio needed for canvas resize
   aspectRatio = canvas.clientHeight/canvas.clientWidth;
   perspectiveAspectRatio = canvas.clientWidth/canvas.clientHeight;
   gl = WebGLUtils.setupWebGL( canvas );
+  // Initialise shaders
   program = initShaders( gl, "vertex-shader", "fragment-shader");
 
 
@@ -612,78 +831,54 @@ window.onload = function init() {
 
 
   // Init vertex buffers (position, color, and index data).
-  numVerticesSphere = createNewPlanet();
+  numVerticesSphere = createSphere();
 
   // Create buffer objects.
-  let vertexPositionBuffer = gl.createBuffer();
-  let vertexNormalBuffer = gl.createBuffer();
-  let indexBuffer = gl.createBuffer();
-  let texCoordsName = gl.createBuffer();
-  let planetIdName = gl.createBuffer();
+  vPositionBuffer = gl.createBuffer();
+  vNormalBuffer = gl.createBuffer();
+  indexBuffer = gl.createBuffer();
+  texCoordBuffer = gl.createBuffer();
 
-  // Write the vertex positions to their buffer object.
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexPositionBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, vertexPositionData, gl.STATIC_DRAW);
+
 
   // Assign position coords to attrib and enable it.
-  let VertexPosition = gl.getAttribLocation(program, 'VertexPosition');
-  gl.vertexAttribPointer(VertexPosition, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(VertexPosition);
-
-  // Write the normals to their buffer object.
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexNormalBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, normalData, gl.STATIC_DRAW);
+  vPosition = gl.getAttribLocation(program, 'vPosition');
 
   // Assign normal to attrib and enable it.
-  let VertexNormal = gl.getAttribLocation(program, 'VertexNormal');
-  gl.vertexAttribPointer(VertexNormal, 3, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(VertexNormal);
+  vNormal = gl.getAttribLocation(program, 'vNormal');
 
-  let texCoordLocation = gl.getAttribLocation(program, "vTexCoord");
-  gl.bindBuffer(gl.ARRAY_BUFFER, texCoordsName);
-  gl.bufferData(gl.ARRAY_BUFFER, textureCoordData, gl.STATIC_DRAW);
+  vTextCoord = gl.getAttribLocation(program, "vTexCoord");
 
-  gl.vertexAttribPointer(texCoordLocation, 2, gl.FLOAT, false, 0, 0);
-  gl.enableVertexAttribArray(texCoordLocation);
+  // bindPlanetBuffers();
 
 
 
-  // Pass index buffer data to element array buffer.
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, indexData, gl.STATIC_DRAW);
-
-
-  for (let p=0; p < numPlanets; ++p){
-      initTextures(p, planetImages[p]);
+  for (let p=0; p < textureImages.length; ++p){
+      initTextures(p, textureImages[p]);
   }
+  // initTextures(numPlanets, shipImage);
 
-
+  //activate and set the texture
+  for (var ii = 0; ii < textureImages.length; ++ii) {
+    gl.activeTexture(gl.TEXTURE0 + ii);
+    gl.bindTexture(gl.TEXTURE_2D, figureTextures[ii]);
+  }
 
   instanceMatrix = mat4();
   // Initialise model view with camera position.
-
   modelViewMatrixPersp = lookAt(eye, at, up);
-
 
   projectionMatrix = perspective(pFovy, (pRight-pLeft)/(pTop-pBottom), pNear, pFar);
   projectionMatrixLoc = gl.getUniformLocation( program, "projectionMatrix")
 
   gl.uniformMatrix4fv( projectionMatrixLoc, false, flatten(projectionMatrix) );
 
-
   modelViewMatrixLoc = gl.getUniformLocation(program, "modelViewMatrix")
   gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrixPersp));
 
-  //activate and set the texture
-  for (var ii = 0; ii < numPlanets; ++ii) {
-    gl.activeTexture(gl.TEXTURE0 + ii);
-    gl.bindTexture(gl.TEXTURE_2D, planetTextures[ii]);
-  }
-
-
   // Pass the light position into the shader.
   let LightPosition = gl.getUniformLocation(program, 'LightPosition');
-  gl.uniform4fv(LightPosition, [0.0, 0.0, -0.0000000000000000001085, 1.0]);
+  gl.uniform4fv(LightPosition, [0.0, 0.0, -ps[1]/2, 1.0]);
 
   // Pass the material diffuse color into the shader.
   let Kd = gl.getUniformLocation(program, 'Kd');
@@ -694,12 +889,8 @@ window.onload = function init() {
   let Ld = gl.getUniformLocation(program, 'Ld');
   gl.uniform3fv(Ld, [1.0, 1.0, 1.0]);
 
-  // Clear & draw.
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  // gl.drawElements(gl.TRIANGLES, numVerticesSphere, gl.UNSIGNED_SHORT, 0);
 
-
-  // EVENTS
+  // EVENTS for key and mouse controls
   document.onkeydown = checkKey;
 
   function checkKey(e) {
@@ -725,26 +916,25 @@ window.onload = function init() {
          document.getElementById("transValueX").value = round(speedX);
       }
       else if (e.keyCode == '65') {
-         // right arrow
+         // right arrow D
          // tx = tx + 0.001;
          speedX = speedX + step/10;
          document.getElementById("transValueX").value = round(speedX);
       }
       else if (e.keyCode == '69') {
-         // Speed up T
+         // Speed up R
          // tz = tz + 0.001;
          speedZ = speedZ + step;
          document.getElementById("transValueZ").value = round(speedZ);
       }
       else if (e.keyCode == '81') {
-         // Slow down Y
+         // Slow down Q
          // tz = tz - 0.001;
          speedZ = speedZ - step;
          document.getElementById("transValueZ").value = round(speedZ);
       }
       else if (e.keyCode == '77') {
-         // Slow down Y
-         // tz = tz - 0.001;
+         // Enable/disable mouse rotation
          enableMouse = !enableMouse;
          if (enableMouse){
              document.getElementById("enableMouse").innerHTML = "Disable Mouse [M]";
@@ -753,8 +943,7 @@ window.onload = function init() {
          }
       }
       else if (e.keyCode == '82') {
-         // Slow down Y
-         // tz = tz - 0.001;
+         // Enable/disable animation
          animate = !animate;
          if (animate){
              document.getElementById("StartAnim").innerHTML = "Stop Animation [R]";
@@ -763,8 +952,7 @@ window.onload = function init() {
          }
       }
       else if (e.keyCode == '32') {
-         // Stop
-         // tz = tz - 0.001;
+         // Stop with space bar
          speedX = 0;
          speedY = 0;
          speedZ = 0;
@@ -777,10 +965,13 @@ window.onload = function init() {
 
 
   document.getElementById("enableMouse").onclick = function(){
+    //onclick event to enable/disable mouse
     enableMouse = !enableMouse;
     updateModelView();
   };
 
+  // Function for the onmousemove canvas event to get the mouse position
+  // with the centre in the middle of the canvas.
   canvas.onmousemove = function(event) {
     let rect = canvas.getBoundingClientRect();
 
@@ -803,7 +994,7 @@ window.onload = function init() {
     }
   };
 
-  // Function to start and stop the animation
+  // Function to enable/disable the mouse with click event
   document.getElementById("enableMouse").onclick = function(){
     enableMouse = !enableMouse;
     if (enableMouse){
@@ -813,12 +1004,14 @@ window.onload = function init() {
     }
   };
 
+  // droplist to select what planet to follow
   document.getElementById("followPlanet").onchange = function(){
     followPlanet = this.value;
+    tx=0;
+    ty=0;
+    tz=0;
 
   };
-
-
 
   render();
 
@@ -857,10 +1050,16 @@ var render = function() {
       cameraCoord[2] = cameraCoord[2]-pc[earthId][2];
 
     }
-
+    shipCoord[0] = -pc[followPlanet][0];
+    shipCoord[1] = 0;
+    shipCoord[2] = -pc[followPlanet][2]-ps[followPlanet]*2.5;
   } else {
+    // If not following a planet, go to the 0 position, with a 3rd of the sun size
+    // away from the sun
     cameraCoord = [0,0,-ps[1]*3];
+    shipCoord = cameraCoord;
   }
+
 
   // Rotation and translation for each planet
   if (animate){
@@ -873,7 +1072,12 @@ var render = function() {
     tx = tx + speedX;
     ty = ty + speedY;
     tz = tz + speedZ;
+
+
   }
+
+
+
 
 
   // The resize function is called on every cycle.
@@ -882,16 +1086,30 @@ var render = function() {
   // Inside resize() before making any changes it checks if the dimensions have actually changed.
 
   resize(gl.canvas);
-  updateModelView();
 
   gl.clear( gl.COLOR_BUFFER_BIT  | gl.DEPTH_BUFFER_BIT);
+  // Set the new camera position and orientation
+  updateModelView();
 
+
+  // Initialise the planets
   for(let i=0; i<numPlanets; i++) {
     initPlanets(i);
   }
-
+  // Bind to the planet buffers before drawing
+  bindPlanetBuffers();
   // Traverse through the hierarchy
   traverse(spaceId);
+
+  // Initialise ship figures
+  for (let i=12;i<15;i++){
+      initShip(i);
+  }
+  // bind ship figures before drawing
+  bindShipBuffers();
+  // Draw ship
+  traverse(bodyId);
+
   // Create the frame
   requestAnimFrame(render);
 }
