@@ -6,7 +6,15 @@
 // Planet distances: https://www.enchantedlearning.com/subjects/astronomy/planets/
 // Moon: http://hyperphysics.phy-astr.gsu.edu/hbase/Solar/moonscale.html
 
+// Lighting
+var lightAmbient = vec4(0.6, 0.6, 0.6, 1.0 );
+var lightDiffuse = vec4( 1.0, 1.0, 0.8, 1.0 );
+var lightSpecular = vec4( 1.0, 1.0, 0.8, 1.0 );
 
+var materialAmbient = vec4( 0.6, 0.6, 0.6, 1.0 );
+var materialDiffuse = vec4(  0.8, 0.7, 0.6, 1.0);
+var materialSpecular = vec4( 1.0, 1.0, 0.8, 1.0 );
+var materialShininess = 15.0;
 
 
 /**********************
@@ -60,6 +68,7 @@ const psDivider = 10000;
 const sunSize = spaceSize/psDivider;///10000;
 const ps = [spaceSize*1.4, sunSize, sunSize/277, sunSize/133, sunSize/108, sunSize/108,//(sunSize/108)*0.27,
             sunSize/208, sunSize/9.7,sunSize/11.4, sunSize/26.8, sunSize/27.7, sunSize/(108*5.5)]
+
 
 // Speed for planet translation
 const speedTransBase = 0.0000001*180/Math.PI;
@@ -197,7 +206,7 @@ var pTop = 1.0;
 // Make pNear same as the smaller size in the planets to always see the planets full size on screen
 var pNear = Math.min.apply(null, ps.slice(2));
 // pFar updated if Z in camera changes to avoid clipping.
-var pFar = 10000;
+var pFar = 10;
 var pFovy = 60;
 var aspectRatio, perspectiveAspectRatio;
 // Speeds for camera movement and planet rotation steps
@@ -208,8 +217,8 @@ var speedZ = 0.0;
 
 var instanceMatrix;
 var projectionMatrix, projectionMatrixLoc;
-var modelViewMatrix, modelViewMatrixLoc;
-var modelViewMatrixPersp;
+var modelViewMatrixLoc, modelViewMatrixOrgLoc;
+var modelViewMatrix;
 
 var animate = true;
 var enableMouse = true;
@@ -263,11 +272,11 @@ function createNode(transform, render, sibling, child){
 // If the node has a child it recursevily calls trasverse
 function traverse(Id) {
    if(Id == null) return;
-   stack.push(modelViewMatrixPersp);
-   modelViewMatrixPersp = mult(modelViewMatrixPersp, figure[Id].transform);
+   stack.push(modelViewMatrix);
+   modelViewMatrix = mult(modelViewMatrix, figure[Id].transform);
    figure[Id].render();
    if(figure[Id].child != null) traverse(figure[Id].child);
-   modelViewMatrixPersp = stack.pop();
+   modelViewMatrix = stack.pop();
    if(figure[Id].sibling != null) traverse(figure[Id].sibling);
 }
 
@@ -286,13 +295,10 @@ function initShip(Id) {
     switch(Id) {
       // Space.
       case bodyId:
-        if (followPlanet>-1){
-          m = translate(pc[followPlanet][0] - 0.0000005-tx, pc[followPlanet][1]- 0.0000005-ty, -shipCoord[2]-0.0000015-tz);
-        } else {
-          m = translate(shipCoord[0]- 0.0000005-tx, shipCoord[1]- 0.0000005-ty, -shipCoord[2]-0.0000015-tz);
-        }
+
+        m = translate(shipCoord[0], shipCoord[1], shipCoord[2]);
         incX = -degrees(speedZ*(psDivider*70));
-        incZ = degrees(speedX*(psDivider*150));
+        incZ = degrees(speedX*(psDivider*700));
         if (incX>45){
           incX=45;
         } else if (incX<-45){
@@ -310,7 +316,7 @@ function initShip(Id) {
       case leftWingId:
         m = translate(-shipBodySize[0]/2,0.0,0.0);
         incX = degrees(speedZ*(psDivider*70));
-        incZ = degrees(speedX*(psDivider*150));
+        incZ = degrees(speedX*(psDivider*700));
         if (incX>45){
           incX=45;
         } else if (incX<-45){
@@ -328,7 +334,7 @@ function initShip(Id) {
       case rightWingId:
         m = translate(shipBodySize[0]/2,0.0,0.0);
         incX = degrees(speedZ*(psDivider*70));
-        incZ = degrees(speedX*(psDivider*150));
+        incZ = degrees(speedX*(psDivider*700));
         if (incX>45){
           incX=45;
         } else if (incX<-45){
@@ -350,7 +356,7 @@ function initShip(Id) {
   // Transformation functions for the ship: translation and size
   // Load the textures and draw elements
   function body() {
-      instanceMatrix = mult(modelViewMatrixPersp, translate(0,0,0));
+      instanceMatrix = mult(modelViewMatrix, translate(0,0,0));
       instanceMatrix = mult(instanceMatrix, scale4(shipBodySize[0], shipBodySize[1], shipBodySize[2]));
       gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
       gl.uniform1i(gl.getUniformLocation( program, "textures"), 12);
@@ -358,7 +364,7 @@ function initShip(Id) {
 
   }
   function leftWing() {
-      instanceMatrix = mult(modelViewMatrixPersp, translate(-shipWingSize[0]/2, 0.0, 0.0) );
+      instanceMatrix = mult(modelViewMatrix, translate(-shipWingSize[0]/2, 0.0, 0.0) );
 
       instanceMatrix = mult(instanceMatrix, scale4( shipWingSize[0], shipWingSize[1], shipWingSize[2]));
       gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
@@ -367,7 +373,7 @@ function initShip(Id) {
 
   }
   function rightWing() {
-      instanceMatrix = mult(modelViewMatrixPersp, translate(shipWingSize[0]/2, 0.0, 0.0) );
+      instanceMatrix = mult(modelViewMatrix, translate(shipWingSize[0]/2, 0.0, 0.0) );
 
       instanceMatrix = mult(instanceMatrix, scale4( shipWingSize[0], shipWingSize[1], shipWingSize[2]));
       gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
@@ -404,9 +410,7 @@ function initPlanets(Id) {
 
       // Mercury.
       case mercuryId:
-        // m = translate(0.0, 0.0, pd[Id]);
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-
         m = mult(m,rotate(pr[mercuryId], 0, 1, 0 ))
         figure[mercuryId] = createNode( m, mercury, venusId, null );
         // console.log("mercury");
@@ -414,7 +418,6 @@ function initPlanets(Id) {
       // Venus.
       case venusId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-
         m = mult(m,rotate(pr[venusId], 0, 1, 0 ))
         figure[venusId] = createNode( m, venus, earthId, null );
         // console.log("venus");
@@ -422,14 +425,11 @@ function initPlanets(Id) {
       // Earth.
       case earthId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-
-        m = mult(m,rotate(pr[earthId], 0, 1, 0 ));
         figure[earthId] = createNode( m, earth, marsId, moonId );
         // console.log("earth");
         break;
       // Moon
       case moonId:
-
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
         m = mult(m,rotate(-pr[moonId], 0, 1, 0 ));
         figure[moonId] = createNode( m, moon, null, null);
@@ -485,7 +485,8 @@ function initPlanets(Id) {
 // Transformation functions for the planets and space: translation and size
 // Load the textures and draw elements
 function space() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0, 0, 0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0, 0, 0) );
+    instanceMatrix = mult(instanceMatrix,rotate(pr[spaceId], 0, 1, 0 ));
     instanceMatrix = mult(instanceMatrix, scale4( ps[0],ps[0],ps[0]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 0);
@@ -494,7 +495,7 @@ function space() {
 }
 
 function sun() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4( ps[1],ps[1],ps[1]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 1);
@@ -504,7 +505,7 @@ function sun() {
 
 
 function mercury() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4( ps[2],ps[2],ps[2]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 2);
@@ -512,7 +513,7 @@ function mercury() {
 
 }
 function venus() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4(ps[3],ps[3],ps[3]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 3);
@@ -520,7 +521,8 @@ function venus() {
 
 }
 function earth() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(instanceMatrix,rotate(pr[earthId], 0, 1, 0 ));
     instanceMatrix = mult(instanceMatrix, scale4( ps[4],ps[4],ps[4]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 4);
@@ -528,7 +530,7 @@ function earth() {
 
 }
 function moon() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4( ps[5],ps[5],ps[5]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 5);
@@ -536,7 +538,7 @@ function moon() {
 
 }
 function mars() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4( ps[6],ps[6],ps[6]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 6);
@@ -545,7 +547,7 @@ function mars() {
 }
 
 function jupiter() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix,rotate(pr[jupiterId], 0, 1, 0 ))
     instanceMatrix = mult(instanceMatrix, scale4( ps[7],ps[7],ps[7]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
@@ -555,7 +557,7 @@ function jupiter() {
 }
 
 function saturn() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4( ps[8],ps[8],ps[8]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 8);
@@ -564,7 +566,7 @@ function saturn() {
 }
 
 function uranus() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4( ps[9],ps[9],ps[9]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 9);
@@ -573,7 +575,7 @@ function uranus() {
 }
 
 function neptune() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4( ps[10],ps[10],ps[10]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 10);
@@ -582,7 +584,7 @@ function neptune() {
 }
 
 function pluto() {
-    instanceMatrix = mult(modelViewMatrixPersp, translate(0.0, 0.0, 0.0) );
+    instanceMatrix = mult(modelViewMatrix, translate(0.0, 0.0, 0.0) );
     instanceMatrix = mult(instanceMatrix, scale4( ps[11],ps[11],ps[11]));
     gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(instanceMatrix));
     gl.uniform1i(gl.getUniformLocation( program, "textures"), 11);
@@ -724,9 +726,9 @@ function rotationXZ(theta, vec){
 }
 // Function to set the position of the camara when following a planet
 function updateCameraAt(){
-  modelViewMatrixPersp[0][3] = cameraCoord[0];
-  modelViewMatrixPersp[1][3] = cameraCoord[1];
-  modelViewMatrixPersp[2][3] = cameraCoord[2];
+  modelViewMatrix[0][3] = cameraCoord[0];
+  modelViewMatrix[1][3] = cameraCoord[1];
+  modelViewMatrix[2][3] = cameraCoord[2];
 }
 
 // Bind and enable ship buffers to draw the ship
@@ -790,14 +792,15 @@ function bindPlanetBuffers(){
 // Camera movement on each axis is done by setting the last column of the homogeneous tranformation mvpMatrix
 // Mouse rotation is done by rotating the result model view matrix
 function updateModelView(){
-  modelViewMatrixPersp = lookAt(eye, at, up);
+  modelViewMatrix = lookAt(eye, at, up);
+  gl.uniformMatrix4fv(modelViewMatrixOrgLoc, false, flatten(modelViewMatrix));
   updateCameraAt();
-  modelViewMatrixPersp[0][3] = modelViewMatrixPersp[0][3] + tx;
-  modelViewMatrixPersp[1][3] = modelViewMatrixPersp[1][3] + ty;
-  modelViewMatrixPersp[2][3] = modelViewMatrixPersp[2][3] + tz;
-  modelViewMatrixPersp = mult(rotate(sz, 0, 0, 1 ),modelViewMatrixPersp);
-  modelViewMatrixPersp = mult(rotate(sy, 0, 1, 0 ),modelViewMatrixPersp);
-  modelViewMatrixPersp = mult(rotate(sx, 1, 0, 0 ),modelViewMatrixPersp);
+  modelViewMatrix[0][3] = modelViewMatrix[0][3] + tx;
+  modelViewMatrix[1][3] = modelViewMatrix[1][3] + ty;
+  modelViewMatrix[2][3] = modelViewMatrix[2][3] + tz;
+  modelViewMatrix = mult(rotate(sz, 0, 0, 1 ),modelViewMatrix);
+  modelViewMatrix = mult(rotate(sy, 0, 1, 0 ),modelViewMatrix);
+  modelViewMatrix = mult(rotate(sx, 1, 0, 0 ),modelViewMatrix);
 
 
 
@@ -851,6 +854,21 @@ window.onload = function init() {
 
   // bindPlanetBuffers();
 
+  // LIGHTING
+  var ambientProduct = mult(lightAmbient, materialAmbient);
+  var diffuseProduct = mult(lightDiffuse, materialDiffuse);
+  var specularProduct = mult(lightSpecular, materialSpecular);
+
+  // Transfer the light data to the vertex shader
+  gl.uniform4fv( gl.getUniformLocation(program,
+     "ambientProductV"),flatten(ambientProduct) );
+  gl.uniform4fv( gl.getUniformLocation(program,
+     "diffuseProductV"),flatten(diffuseProduct) );
+  gl.uniform4fv( gl.getUniformLocation(program,
+     "specularProductV"),flatten(specularProduct) );
+  gl.uniform1f( gl.getUniformLocation(program,
+     "shininessV"),materialShininess );
+
 
 
   for (let p=0; p < textureImages.length; ++p){
@@ -866,7 +884,7 @@ window.onload = function init() {
 
   instanceMatrix = mat4();
   // Initialise model view with camera position.
-  modelViewMatrixPersp = lookAt(eye, at, up);
+  modelViewMatrix = lookAt(eye, at, up);
 
   projectionMatrix = perspective(pFovy, (pRight-pLeft)/(pTop-pBottom), pNear, pFar);
   projectionMatrixLoc = gl.getUniformLocation( program, "projectionMatrix")
@@ -874,20 +892,14 @@ window.onload = function init() {
   gl.uniformMatrix4fv( projectionMatrixLoc, false, flatten(projectionMatrix) );
 
   modelViewMatrixLoc = gl.getUniformLocation(program, "modelViewMatrix")
-  gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrixPersp));
+  modelViewMatrixOrgLoc = gl.getUniformLocation(program, "modelViewMatrixOrg")
+  gl.uniformMatrix4fv(modelViewMatrixLoc, false, flatten(modelViewMatrix));
 
   // Pass the light position into the shader.
   let LightPosition = gl.getUniformLocation(program, 'LightPosition');
-  gl.uniform4fv(LightPosition, [0.0, 0.0, -ps[1]/2, 1.0]);
+  gl.uniform4fv(LightPosition, [0.0, 0.0, 0.0001, 1.0]);
 
-  // Pass the material diffuse color into the shader.
-  let Kd = gl.getUniformLocation(program, 'Kd');
-  // gl.uniform3fv(Kd, [0.9, 0.5, 0.3]);
-  gl.uniform3fv(Kd, [1.0, 1.0, 1.0]);
 
-  // Pass the light diffuse color into the shader.
-  let Ld = gl.getUniformLocation(program, 'Ld');
-  gl.uniform3fv(Ld, [1.0, 1.0, 1.0]);
 
 
   // EVENTS for key and mouse controls
@@ -1039,42 +1051,52 @@ var render = function() {
         sx = 0;
       }
     }
-  // Set camera coordinates close to the planet to follow
-  if (followPlanet > -1){
-    cameraCoord[0] = -pc[followPlanet][0];
-    cameraCoord[1] = 0;
-    cameraCoord[2] = -pc[followPlanet][2]-ps[followPlanet]*2.5;
-    if (followPlanet == moonId){
-      cameraCoord[0] = cameraCoord[0] -pc[earthId][0];
-      cameraCoord[1] = 0;
-      cameraCoord[2] = cameraCoord[2]-pc[earthId][2];
+
+    // Rotation and translation for each planet
+    if (animate){
+      for (let p=0; p<pr.length; p++){
+        pr[p] = pr[p] + speedRotation[p];
+        let coor = rotationXZ(pt[p], pc[p]);
+        pc[p] = coor;
+
+      }
+
+      tx = tx + speedX;
+      ty = ty + speedY;
+      tz = tz + speedZ;
+
 
     }
-    shipCoord[0] = -pc[followPlanet][0];
-    shipCoord[1] = 0;
-    shipCoord[2] = -pc[followPlanet][2]-ps[followPlanet]*2.5;
+  // Set camera coordinates close to the planet to follow
+  if (followPlanet > -1){
+    if (followPlanet == moonId){
+      cameraCoord[0] = -pc[followPlanet][0] -pc[earthId][0];
+      cameraCoord[1] = 0;
+      cameraCoord[2] = -pc[followPlanet][2]-ps[followPlanet]*2.5-pc[earthId][2];
+
+
+    } else {
+      cameraCoord[0] = -pc[followPlanet][0];
+      cameraCoord[1] = 0;
+      cameraCoord[2] = -pc[followPlanet][2]-ps[followPlanet]*2.5;
+    }
+
+
+    shipCoord[0] = -cameraCoord[0] - 0.0000005-tx;
+    shipCoord[1] = -cameraCoord[1]- 0.0000005-ty
+    shipCoord[2] = -cameraCoord[2]-0.0000015-tz
   } else {
     // If not following a planet, go to the 0 position, with a 3rd of the sun size
     // away from the sun
     cameraCoord = [0,0,-ps[1]*3];
-    shipCoord = cameraCoord;
-  }
-
-
-  // Rotation and translation for each planet
-  if (animate){
-    for (let p=0; p<pr.length; p++){
-      pr[p] = pr[p] + speedRotation[p];
-      let coor = rotationXZ(pt[p], pc[p]);
-      pc[p] = coor;
-    }
-
-    tx = tx + speedX;
-    ty = ty + speedY;
-    tz = tz + speedZ;
-
+    shipCoord[0] = cameraCoord[0] - 0.0000005-tx;
+    shipCoord[1] = cameraCoord[1]- 0.0000005-ty
+    shipCoord[2] = -cameraCoord[2]-0.0000015-tz
 
   }
+
+
+
 
 
 
@@ -1112,4 +1134,6 @@ var render = function() {
 
   // Create the frame
   requestAnimFrame(render);
+
+
 }
