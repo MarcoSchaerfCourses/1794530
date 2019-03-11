@@ -438,14 +438,14 @@ function initPlanets(Id) {
 
       case marsId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m, rotate(0, 0, 1, 0));
+        m = mult(m, rotate(pr[marsId], 0, 1, 0));
         figure[marsId] = createNode( m, mars, jupiterId, null);
         // console.log("mars");
         break;
 
       case jupiterId:
         m = translate(pc[Id][0], pc[Id][1], pc[Id][2]);
-        m = mult(m,rotate(pr[marsId], 0, 1, 0 ));
+        m = mult(m,rotate(pr[jupiterId], 0, 1, 0 ));
         figure[jupiterId] = createNode( m, jupiter, saturnId, null);
         // console.log("jupiter");
         break;
