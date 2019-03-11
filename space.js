@@ -71,7 +71,7 @@ const ps = [spaceSize*1.4, sunSize, sunSize/277, sunSize/133, sunSize/108, sunSi
 
 
 // Speed for planet translation
-const speedTransBase = 0.0000001*180/Math.PI;
+const speedTransBase = 0.001*180/Math.PI;
 const pt = [0, 0, speedTransBase/9, speedTransBase/8, speedTransBase/7, speedTransBase/8,
             speedTransBase/6, speedTransBase/7,speedTransBase/8, speedTransBase/9, speedTransBase/15, speedTransBase/100000]
 
